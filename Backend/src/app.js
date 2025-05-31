@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dBconnect from './config/ConnectDB.js';
 import ConnectCloudinary from './lib/Cloudinary.js';
+import AuthRouter from "./routes/authRoutes.js"
 
 
 dotenv.config();
@@ -37,7 +38,7 @@ app.use(cookieParser());
 // -------------- CookieParser end
 
 // Routes
-// app.use("/api/user", AuthRouter);
+app.use("/api/Auth", AuthRouter);
 // -------------- Routes end
 
 export default app;

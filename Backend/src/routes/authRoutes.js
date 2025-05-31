@@ -11,6 +11,7 @@ import {
 } from "../controllers/authController.js";
 import { validateLoginInput, validateRegisterInput } from "../middleware/validatorsMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
+import upload from "../config/multer.js";
 
 const router = express.Router();
 
@@ -32,7 +33,10 @@ router.post("/verify-otp", verifyOTP);
 // Reset password after OTP verification
 router.post("/reset-password", resetPassword);
 
-// GET /api/profile - Get protect user's profile
-router.get("/:id", protect, getProfile);
+// GET /api/profile/:id - Get user's profile
+router.get("/:id", getProfile);
+
+// Put /api/editProfile - Edit protect user's profile
+router.put("/editProfile", protect, upload.single("profileImage"), editProfile);
 
 export default router;

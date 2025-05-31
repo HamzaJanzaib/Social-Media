@@ -2,6 +2,8 @@ import User from "../models/User.js";
 import { comparePassword, hashedPassword } from "../utils/Bcrypt.js";
 import { generateToken } from "../utils/Jwt.js";
 import crypto from "crypto";
+import cloudinary from "../lib/Cloudinary.js";
+import fs from "fs";
 import { ForgetPasswordEmail, RegistrationConfirmationEmail } from '../config/emailTemplates.js';
 
 
@@ -133,7 +135,6 @@ export const logoutUser = (req, res) => {
     res.json({ message: "Logged out successfully" });
 };
 
-
 export const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
@@ -231,7 +232,6 @@ export const resetPassword = async (req, res) => {
     }
 };
 
-
 export const getProfile = async (req, res) => {
     try {
         const userId = req.params.id;
@@ -248,4 +248,49 @@ export const getProfile = async (req, res) => {
         console.error("Get Profile Error:", error);
         res.status(500).json({ message: "Server error" });
     }
+};
+
+export const editProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { name, bio, gender } = req.body;
+
+    const updatedData = {
+      ...(name && { name }),
+      ...(bio && { bio }),
+      ...(gender && { gender }),
+    };
+
+    // Handle image if uploaded
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "social/profileImages",
+        use_filename: true,
+        unique_filename: false,
+      });
+
+      updatedData.profileImage = result.secure_url;
+
+      // Delete file from local storage
+      fs.unlinkSync(req.file.path);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updatedData },
+      { new: true, runValidators: true }
+    ).select("-password -resetPasswordOTP -resetPasswordOTPExpire -isOTPVerified");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Edit profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };
