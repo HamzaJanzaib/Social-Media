@@ -9,6 +9,9 @@ import {
   verifyOTP,
   getProfile,
   editProfile,
+  getSuggestedUsers,
+  toggleFollow,
+  getFriends
 } from "../controllers/authController.js";
 import { validateLoginInput, validateRegisterInput } from "../middleware/validatorsMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -39,5 +42,14 @@ router.get("/:id", getProfile);
 
 // Put /api/editProfile - Edit protect user's profile
 router.put("/editProfile", protect, upload.single("profileImage"), editProfile);
+
+// GET /api/suggested-users - Get suggested-user's profile
+router.get("/suggested-users", protect, getSuggestedUsers);
+
+// toggle/:id togle follow Unfollow
+router.post("/toggle/:id", protect, toggleFollow);
+
+// Get all friends (users you follow)
+router.get("/friends", protect, getFriends);
 
 export default router;

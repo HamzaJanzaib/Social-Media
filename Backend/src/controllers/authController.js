@@ -7,7 +7,6 @@ import fs from "fs";
 import { ForgetPasswordEmail, RegistrationConfirmationEmail } from '../config/emailTemplates.js';
 
 
-// Register new user
 export const registerUser = async (req, res) => {
     try {
         const { name, userName, email, password } = req.body;
@@ -251,46 +250,125 @@ export const getProfile = async (req, res) => {
 };
 
 export const editProfile = async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { name, bio, gender } = req.body;
+    try {
+        const userId = req.userId;
+        const { name, bio, gender } = req.body;
 
-    const updatedData = {
-      ...(name && { name }),
-      ...(bio && { bio }),
-      ...(gender && { gender }),
-    };
+        const updatedData = {
+            ...(name && { name }),
+            ...(bio && { bio }),
+            ...(gender && { gender }),
+        };
 
-    // Handle image if uploaded
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "social/profileImages",
-        use_filename: true,
-        unique_filename: false,
-      });
+        // Handle image if uploaded
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, {
+                folder: "social/profileImages",
+                use_filename: true,
+                unique_filename: false,
+            });
 
-      updatedData.profileImage = result.secure_url;
+            updatedData.profileImage = result.secure_url;
 
-      // Delete file from local storage
-      fs.unlinkSync(req.file.path);
+            // Delete file from local storage
+            fs.unlinkSync(req.file.path);
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: updatedData },
+            { new: true, runValidators: true }
+        ).select("-password -resetPasswordOTP -resetPasswordOTPExpire -isOTPVerified");
+
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            user: updatedUser,
+        });
+    } catch (error) {
+        console.error("Edit profile error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
     }
+};
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updatedData },
-      { new: true, runValidators: true }
-    ).select("-password -resetPasswordOTP -resetPasswordOTPExpire -isOTPVerified");
+export const getSuggestedUsers = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    // Get current user
+    const currentUser = await User.findById(userId);
+
+    // Collect IDs to exclude (current user + following)
+    const excludeIds = [userId, ...currentUser.following];
+
+    // Find users not followed by the current user
+    const suggestedUsers = await User.find({ _id: { $nin: excludeIds } })
+      .select("userName name profileImage bio") // Only return minimal info
+      .limit(10); // Optional: limit suggestions
 
     res.status(200).json({
       success: true,
-      message: "Profile updated successfully",
-      user: updatedUser,
+      users: suggestedUsers,
     });
   } catch (error) {
-    console.error("Edit profile error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    console.error("getSuggestedUsers error:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+export const toggleFollow = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user?.id;
+
+    if (targetUserId === currentUserId.toString()) {
+      return res.status(400).json({ message: "You cannot follow/unfollow yourself." });
+    }
+
+    const targetUser = await User.findById(targetUserId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!targetUser || !currentUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Check if already following
+    if (targetUser.followers.includes(currentUserId)) {
+      // Unfollow
+      targetUser.followers = targetUser.followers.filter(
+        (id) => id.toString() !== currentUserId.toString()
+      );
+      currentUser.following = currentUser.following.filter(
+        (id) => id.toString() !== targetUserId.toString()
+      );
+      await targetUser.save();
+      await currentUser.save();
+
+      return res.status(200).json({ message: "User unfollowed successfully." });
+    } else {
+      // Follow
+      targetUser.followers.push(currentUserId);
+      currentUser.following.push(targetUserId);
+
+      await targetUser.save();
+      await currentUser.save();
+
+      return res.status(200).json({ message: "User followed successfully." });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
+
+export const getFriends = async (req, res) => {
+  try {
+    const user = await User.findById(req.user?.id).populate("following", "name userName profileImage");
+
+    res.status(200).json({ friends: user.following });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
   }
 };
