@@ -41,7 +41,7 @@ export const registerUser = async (req, res) => {
 
         const subject = "Registration Successful!";
         const html = RegistrationConfirmationEmail(userName);
-        await sendMail(email, "Social Media", subject, html);
+        await sendMail(email, "Social", subject, html);
 
 
         // Set token in HTTP-only cookie
@@ -156,7 +156,7 @@ export const forgotPassword = async (req, res) => {
 
         const subject = "Email Verification Code";
         const html = ForgetPasswordEmail(verificationCode, email);
-        await sendMail(email, "Socail Media", subject, html);
+        await sendMail(email, "Social", subject, html);
 
 
         res.json({ message: "OTP sent to your email" });
