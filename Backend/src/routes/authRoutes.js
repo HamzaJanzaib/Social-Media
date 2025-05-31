@@ -8,6 +8,7 @@ import {
   resetPassword,
   verifyOTP,
   getProfile,
+  editProfile,
 } from "../controllers/authController.js";
 import { validateLoginInput, validateRegisterInput } from "../middleware/validatorsMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
