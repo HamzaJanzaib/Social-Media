@@ -234,7 +234,8 @@ export const resetPassword = async (req, res) => {
 
 export const getProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.userId)
+        const userId = req.params.id;
+        const user = await User.findById(userId)
             .select("-password -otp -otpExpiry -verifyOTP")
             .populate("followers", "userName profileImage")
             .populate("following", "userName profileImage")

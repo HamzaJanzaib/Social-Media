@@ -33,6 +33,6 @@ router.post("/verify-otp", verifyOTP);
 router.post("/reset-password", resetPassword);
 
 // GET /api/profile - Get protect user's profile
-router.get("/", protect, getProfile);
+router.get("/:id", protect, getProfile);
 
 export default router;
