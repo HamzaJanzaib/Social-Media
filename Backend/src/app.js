@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dBconnect from './config/ConnectDB.js';
-import ConnectCloudinary from './lib/Cloudinary.js';
 import AuthRouter from "./routes/authRoutes.js"
 
 
@@ -15,9 +14,6 @@ const app = express();
 dBconnect(process.env.MONGO_URI);
 // -------------- Import And Call DB function end
 
-// Import And Call Cloudinary function
-ConnectCloudinary();
-// -------------- Import And Call Cloudinary function end
 
 // CORS configuration
 app.use(cors({
