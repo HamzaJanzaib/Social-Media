@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import { comparePassword, hashedPassword } from "../utils/Bcrypt.js";
 import { generateToken } from "../utils/Jwt.js";
 import crypto from "crypto";
+import { ForgetPasswordEmail, RegistrationConfirmationEmail } from '../config/emailTemplates.js';
 
 
 // Register new user
@@ -37,6 +38,11 @@ export const registerUser = async (req, res) => {
 
         // Generate token
         const token = generateToken(newUser);
+
+        const subject = "Registration Successful!";
+        const html = RegistrationConfirmationEmail(userName);
+        await sendMail(email, "Social Media", subject, html);
+
 
         // Set token in HTTP-only cookie
         res.cookie("token", token, {
@@ -87,6 +93,10 @@ export const loginUser = async (req, res) => {
 
         // Generate token
         const token = generateToken(user);
+
+        const subject = "Welcome to Social!";
+        const html = WelcomeEmail(userName);
+        await sendMail(email, "Social", subject, html);
 
         // Set token in cookie
         res.cookie("token", token, {
@@ -144,8 +154,10 @@ export const forgotPassword = async (req, res) => {
 
         await user.save();
 
-        // // Send OTP to user (email or SMS)
-        // await sendOTP(user.email, otp);
+        const subject = "Email Verification Code";
+        const html = ForgetPasswordEmail(verificationCode, email);
+        await sendMail(email, "Socail Media", subject, html);
+
 
         res.json({ message: "OTP sent to your email" });
     } catch (error) {
@@ -221,18 +233,18 @@ export const resetPassword = async (req, res) => {
 
 
 export const getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId)
-      .select("-password -otp -otpExpiry -verifyOTP") 
-      .populate("followers", "userName profileImage")
-      .populate("following", "userName profileImage")
-      .populate("posts");
+    try {
+        const user = await User.findById(req.userId)
+            .select("-password -otp -otpExpiry -verifyOTP")
+            .populate("followers", "userName profileImage")
+            .populate("following", "userName profileImage")
+            .populate("posts");
 
-    if (!user) return res.status(404).json({ message: "User not found." });
+        if (!user) return res.status(404).json({ message: "User not found." });
 
-    res.json(user);
-  } catch (error) {
-    console.error("Get Profile Error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
+        res.json(user);
+    } catch (error) {
+        console.error("Get Profile Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
 };
