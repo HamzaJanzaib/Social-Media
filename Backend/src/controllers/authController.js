@@ -392,7 +392,11 @@ export const getFriends = async (req, res) => {
             return res.status(400).json({ message: "Invalid or missing user ID" });
         }
         const user = await User.findById(userId)
-            .populate({ path: "following", options: { sort: { createdAt: -1 } } });
+            .populate({ 
+            path: "following", 
+            select: "userName bio profileImage", 
+            options: { sort: { createdAt: -1 } } 
+            });
 
 
         if (!user) {
