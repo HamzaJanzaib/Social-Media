@@ -21,10 +21,9 @@ export const validateRegisterInput = (req, res, next) => {
   }
 
   // password: min 6 chars, at least one number, one letter
-  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
-  if (!passwordRegex.test(password)) {
+  if (password.length < 6) {
     return res.status(400).json({
-      message: "Password must be minimum 6 characters, with at least one letter and one number.",
+      message: "Password must be minimum 6 characters",
     });
   }
 

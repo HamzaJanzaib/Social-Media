@@ -4,7 +4,9 @@ import { generateToken } from "../utils/Jwt.js";
 import crypto from "crypto";
 import cloudinary from "../lib/Cloudinary.js";
 import fs from "fs";
-import { ForgetPasswordEmail, RegistrationConfirmationEmail } from '../config/emailTemplates.js';
+import { ForgetPasswordEmail, RegistrationConfirmationEmail, WelcomeEmail } from '../config/emailTemplates.js';
+import sendMail from './../lib/SendMail.js';
+import mongoose from "mongoose";
 
 
 export const registerUser = async (req, res) => {
@@ -38,7 +40,7 @@ export const registerUser = async (req, res) => {
         await newUser.save();
 
         // Generate token
-        const token = generateToken(newUser);
+        const token = await generateToken(newUser);
 
         const subject = "Registration Successful!";
         const html = RegistrationConfirmationEmail(userName);
@@ -87,17 +89,17 @@ export const loginUser = async (req, res) => {
         }
 
         // Check password
-        const isMatch = await comparePassword(user.password);
+        const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid credentials." });
         }
 
         // Generate token
-        const token = generateToken(user);
+        const token = await generateToken(user);
 
         const subject = "Welcome to Social!";
-        const html = WelcomeEmail(userName);
-        await sendMail(email, "Social", subject, html);
+        const html = WelcomeEmail(identifier);
+        await sendMail(identifier, "Social", subject, html);
 
         // Set token in cookie
         res.cookie("token", token, {
@@ -149,13 +151,13 @@ export const forgotPassword = async (req, res) => {
 
         // Set OTP and expiry (e.g., 10 minutes from now)
         user.otp = otp;
-        user.otpExpiry = Date.now() + 10 * 60 * 1000;
+        user.otpExpiry = Date.now() + 100 * 60 * 1000;
         user.verifyOTP = false;
 
         await user.save();
 
         const subject = "Email Verification Code";
-        const html = ForgetPasswordEmail(verificationCode, email);
+        const html = ForgetPasswordEmail(otp, email);
         await sendMail(email, "Social", subject, html);
 
 
@@ -209,7 +211,7 @@ export const resetPassword = async (req, res) => {
     }
 
     try {
-        const user = await User.findById(email);
+        const user = await User.findOne({ email });
 
         if (!user) return res.status(404).json({ message: "User not found." });
 
@@ -238,7 +240,6 @@ export const getProfile = async (req, res) => {
             .select("-password -otp -otpExpiry -verifyOTP")
             .populate("followers", "userName profileImage")
             .populate("following", "userName profileImage")
-            .populate("posts");
 
         if (!user) return res.status(404).json({ message: "User not found." });
 
@@ -251,16 +252,16 @@ export const getProfile = async (req, res) => {
 
 export const editProfile = async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.user?.id;
         const { name, bio, gender } = req.body;
 
-        const updatedData = {
-            ...(name && { name }),
-            ...(bio && { bio }),
-            ...(gender && { gender }),
-        };
+        // Build update object conditionally
+        const updatedData = {};
+        if (name) updatedData.name = name;
+        if (bio) updatedData.bio = bio;
+        if (gender) updatedData.gender = gender;
 
-        // Handle image if uploaded
+        // Handle image upload if file exists
         if (req.file) {
             const result = await cloudinary.uploader.upload(req.file.path, {
                 folder: "social/profileImages",
@@ -270,105 +271,144 @@ export const editProfile = async (req, res) => {
 
             updatedData.profileImage = result.secure_url;
 
-            // Delete file from local storage
+            // Remove the file from local temp storage
             fs.unlinkSync(req.file.path);
         }
 
+        // Update user
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $set: updatedData },
-            { new: true, runValidators: true }
+            {
+                new: true,
+                runValidators: true,
+            }
         ).select("-password -resetPasswordOTP -resetPasswordOTPExpire -isOTPVerified");
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
 
         res.status(200).json({
             success: true,
-            message: "Profile updated successfully",
+            message: "Profile updated successfully.",
             user: updatedUser,
         });
     } catch (error) {
         console.error("Edit profile error:", error);
         res.status(500).json({
             success: false,
-            message: "Internal server error",
+            message: "Internal server error.",
+            error: error.message,
         });
     }
 };
 
 export const getSuggestedUsers = async (req, res) => {
-  try {
-    const userId = req.user?.id;
+    try {
+        const userId = req.user?.id;
 
-    // Get current user
-    const currentUser = await User.findById(userId);
+        // Validate userId
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized: User not authenticated." });
+        }
 
-    // Collect IDs to exclude (current user + following)
-    const excludeIds = [userId, ...currentUser.following];
+        // Get current user
+        const currentUser = await User.findById(userId);
+        if (!currentUser) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
 
-    // Find users not followed by the current user
-    const suggestedUsers = await User.find({ _id: { $nin: excludeIds } })
-      .select("userName name profileImage bio") // Only return minimal info
-      .limit(10); // Optional: limit suggestions
+        // Collect IDs to exclude (current user + following)
+        const excludeIds = [userId, ...currentUser.following];
 
-    res.status(200).json({
-      success: true,
-      users: suggestedUsers,
-    });
-  } catch (error) {
-    console.error("getSuggestedUsers error:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
+        // Find users not followed by the current user
+        const suggestedUsers = await User.find({ _id: { $nin: excludeIds } })
+            .select("userName name profileImage bio")
+            .limit(10);
+
+        res.status(200).json({
+            success: true,
+            users: suggestedUsers,
+        });
+    } catch (error) {
+        console.error("getSuggestedUsers error:", error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
 };
 
 export const toggleFollow = async (req, res) => {
-  try {
-    const targetUserId = req.params.id;
-    const currentUserId = req.user?.id;
+    try {
+        const targetUserId = req.params.id;
+        const currentUserId = req.user?.id;
 
-    if (targetUserId === currentUserId.toString()) {
-      return res.status(400).json({ message: "You cannot follow/unfollow yourself." });
+        if (targetUserId === currentUserId.toString()) {
+            return res.status(400).json({ message: "You cannot follow/unfollow yourself." });
+        }
+
+        const targetUser = await User.findById(targetUserId);
+        const currentUser = await User.findById(currentUserId);
+
+        if (!targetUser || !currentUser) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Check if already following
+        if (targetUser.followers.includes(currentUserId)) {
+            // Unfollow
+            targetUser.followers = targetUser.followers.filter(
+                (id) => id.toString() !== currentUserId.toString()
+            );
+            currentUser.following = currentUser.following.filter(
+                (id) => id.toString() !== targetUserId.toString()
+            );
+            await targetUser.save();
+            await currentUser.save();
+
+            return res.status(200).json({ message: "User unfollowed successfully." });
+        } else {
+            // Follow
+            targetUser.followers.push(currentUserId);
+            currentUser.following.push(targetUserId);
+
+            await targetUser.save();
+            await currentUser.save();
+
+            return res.status(200).json({ message: "User followed successfully." });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error });
     }
-
-    const targetUser = await User.findById(targetUserId);
-    const currentUser = await User.findById(currentUserId);
-
-    if (!targetUser || !currentUser) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    // Check if already following
-    if (targetUser.followers.includes(currentUserId)) {
-      // Unfollow
-      targetUser.followers = targetUser.followers.filter(
-        (id) => id.toString() !== currentUserId.toString()
-      );
-      currentUser.following = currentUser.following.filter(
-        (id) => id.toString() !== targetUserId.toString()
-      );
-      await targetUser.save();
-      await currentUser.save();
-
-      return res.status(200).json({ message: "User unfollowed successfully." });
-    } else {
-      // Follow
-      targetUser.followers.push(currentUserId);
-      currentUser.following.push(targetUserId);
-
-      await targetUser.save();
-      await currentUser.save();
-
-      return res.status(200).json({ message: "User followed successfully." });
-    }
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
 };
 
-export const getFriends = async (req, res) => {
-  try {
-    const user = await User.findById(req.user?.id).populate("following", "name userName profileImage");
 
-    res.status(200).json({ friends: user.following });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
+export const getFriends = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        if (!userId) {
+            return res.status(400).json({ message: "Invalid or missing user ID" });
+        }
+        const user = await User.findById(userId)
+            .populate({ path: "following", options: { sort: { createdAt: -1 } } });
+
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Friends list fetched successfully",
+            friends: user.following,
+        });
+    } catch (error) {
+        console.log("Get Friends Error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+        });
+    }
 };

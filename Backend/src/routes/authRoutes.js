@@ -49,7 +49,7 @@ router.get("/suggested-users", protect, getSuggestedUsers);
 // toggle/:id togle follow Unfollow
 router.post("/toggle/:id", protect, toggleFollow);
 
-// Get all friends (users you follow)
-router.get("/friends", protect, getFriends);
+// Get all friends (users you follow) 
+router.get("/friends/:id", protect, getFriends);
 
 export default router;

@@ -34,7 +34,7 @@ app.use(cookieParser());
 // -------------- CookieParser end
 
 // Routes
-app.use("/api/Auth", AuthRouter);
+app.use("/api/auth", AuthRouter);
 // -------------- Routes end
 
 export default app;
