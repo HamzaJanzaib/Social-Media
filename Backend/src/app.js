@@ -4,6 +4,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dBconnect from './config/ConnectDB.js';
 import AuthRouter from "./routes/authRoutes.js"
+import MessageRouter from "./routes/messagesRoutes.js"
+import PostRouter from "./routes/postRoutes.js"
 
 
 dotenv.config();
@@ -35,6 +37,8 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", AuthRouter);
+app.use("/api/message", MessageRouter);
+app.use("/api/post", PostRouter);
 // -------------- Routes end
 
 export default app;
