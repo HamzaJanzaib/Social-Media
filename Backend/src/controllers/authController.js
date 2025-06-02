@@ -240,6 +240,7 @@ export const getProfile = async (req, res) => {
             .select("-password -otp -otpExpiry -verifyOTP")
             .populate("followers", "userName profileImage")
             .populate("following", "userName profileImage")
+            .populate("posts", "content createdAt likes comments image");
 
         if (!user) return res.status(404).json({ message: "User not found." });
 

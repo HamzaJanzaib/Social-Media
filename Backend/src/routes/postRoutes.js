@@ -1,7 +1,7 @@
-const express = require('express');
-import { protect } from './../middleware/authMiddleware';
-import upload from './../config/multer';
-import { addComment, createPost, deleteComment, deletePost, getAllPosts, getAllSavedPosts, getPostComment, getUserPost, likeComment, likePost, savedPost, unlikeComment, unlikePost } from '../controllers/postController';
+import express from 'express';
+import { protect } from './../middleware/authMiddleware.js';
+import upload from './../config/multer.js';
+import { addComment, createPost, deleteComment, deletePost, getAllPosts, getAllSavedPosts, getPostComment, getUserPost, likeComment, likePost, savedPost, unlikeComment, unlikePost } from '../controllers/postController.js';
 
 const router = express.Router();
 

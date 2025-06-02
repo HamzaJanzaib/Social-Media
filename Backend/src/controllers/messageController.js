@@ -1,6 +1,6 @@
-import Conversation from "../models/Conversation";
-import Message from "../models/Message";
-import cloudinary from "../lib/cloudinary.js";
+import Conversation from "../models/Conversation.js";
+import Message from "../models/Message.js";
+import cloudinary from "../lib/Cloudinary.js";
 import sharp from "sharp";
 import fs from "fs";
 
