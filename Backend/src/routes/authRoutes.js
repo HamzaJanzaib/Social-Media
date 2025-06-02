@@ -38,7 +38,7 @@ router.post("/verify-otp", verifyOTP);
 router.post("/reset-password", resetPassword);
 
 // GET /api/profile/:id - Get user's profile
-router.get("/:id", getProfile);
+router.get("/:id/profile", getProfile);
 
 // Put /api/editProfile - Edit protect user's profile
 router.put("/editProfile", protect, upload.single("profileImage"), editProfile);
