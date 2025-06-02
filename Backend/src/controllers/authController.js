@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Post from "../models/Post.js";
 import { comparePassword, hashedPassword } from "../utils/Bcrypt.js";
 import { generateToken } from "../utils/Jwt.js";
 import crypto from "crypto";
@@ -6,7 +7,6 @@ import cloudinary from "../lib/Cloudinary.js";
 import fs from "fs";
 import { ForgetPasswordEmail, RegistrationConfirmationEmail, WelcomeEmail } from '../config/emailTemplates.js';
 import sendMail from './../lib/SendMail.js';
-import mongoose from "mongoose";
 
 
 export const registerUser = async (req, res) => {
@@ -109,6 +109,13 @@ export const loginUser = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
+        const populatePost = await Promise.all(
+            user.posts.map(async (postId) => {
+                const post = await Post.findById(postId);
+                if (post.author.equals(user._id)) return post;
+                return null;
+            })
+        );
         // Send user data without password
         res.json({
             message: "Login successful",
@@ -117,6 +124,10 @@ export const loginUser = async (req, res) => {
                 name: user.name,
                 userName: user.userName,
                 email: user.email,
+                profileImage: user.profileImage,
+                followers: user.followers,
+                following: user.following,
+                posts: populatePost.filter((post) => post !== null), 
             },
         });
     } catch (error) {
@@ -125,7 +136,7 @@ export const loginUser = async (req, res) => {
     }
 };
 
-export const logoutUser = (req, res) => {
+export const logoutUser = (_, res) => {
     res.cookie("token", "", {
         httpOnly: true,
         expires: new Date(0), // Expire cookie immediately
@@ -393,10 +404,10 @@ export const getFriends = async (req, res) => {
             return res.status(400).json({ message: "Invalid or missing user ID" });
         }
         const user = await User.findById(userId)
-            .populate({ 
-            path: "following", 
-            select: "userName bio profileImage", 
-            options: { sort: { createdAt: -1 } } 
+            .populate({
+                path: "following",
+                select: "userName bio profileImage",
+                options: { sort: { createdAt: -1 } }
             });
 
 
