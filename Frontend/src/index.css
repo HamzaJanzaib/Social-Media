@@ -114,7 +114,40 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+h1 {
+  @apply text-[40px] font-semibold;
+}
+
+h2 {
+  @apply text-[32px] font-bold;
+}
+
+h3 {
+  @apply text-[24px] font-bold;
+}
+
+h4 {
+  @apply text-[18px] font-semibold;
+}
+
+h5 {
+  @apply text-[16px] font-medium;
+}
+
+h6 {
+  @apply text-[14px] font-medium;
+}
+
+shadow {
+  @apply shadow-md shadow-ring/20;
+}
+
+shadow2 {
+  @apply shadow-sm shadow-ring/10;
 }
