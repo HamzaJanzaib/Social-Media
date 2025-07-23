@@ -151,3 +151,7 @@ shadow {
 shadow2 {
   @apply shadow-sm shadow-ring/10;
 }
+
+#root {
+  @apply min-h-screen flex flex-col bg-[#fafbff];
+}
